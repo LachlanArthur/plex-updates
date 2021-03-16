@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<link rel="icon" href="/favicon.ico" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="stylesheet" type="text/css" href="/index.css" />
+	<title>Plex Updates</title>
+</head>
+
+<body>
+	<noscript>You gotta have JavaScript for this.</noscript>
+
+	<form id="plexUpdates" action="#" x-data="PlexUpdates.alpine()" x-init="init">
+
+		<label for="plexUrl">Plex URL (local network IP including port)</label>
+		<input type="url" id="plexUrl" autocomplete="plex-url" x-model="plexUrl" />
+		<br>
+		<label for="plexToken">Plex Token</label>
+		<input type="text" id="plexToken" autocomplete="plex-token" x-model="plexToken" />
+		<br>
+		<button type="button" @click="onclick_connectToServer">Connect to server</button>
+
+		<template x-if="server">
+
+			<h3>Connected to <span x-text="server.name"></span></h3>
+
+			<label for="plexToken">Plex Libraries</label>
+			<ul>
+				<template x-for="section in librarySections" :key="section.key">
+					<li>
+						<label>
+							<input type="checkbox" x-model="selectedLibrarySectionsKeys" :value="section.key" />
+							<span x-text="section.title"></span>
+						</label>
+					</li>
+				</template>
+			</ul>
+
+			<br>
+			<button type="button" @click="onclick_getRecentlyAdded">Get recently added items from <span x-text="selectedLibrarySectionsKeys.length">0</span> sections</button>
+
+			<h3 x-show="recentlyAdded.length">Recently added</h3>
+
+			<ul class="recently-added-media">
+				<template x-for="media in recentlyAdded" :key="media.key">
+					<li>
+						<label>
+							<input type="checkbox" x-model="selectedMediaKeys" :value="media.key" />
+							<img :src="getMediaPoster( media )" loading="lazy" />
+							<div class="media-meta">
+								<span class="media-title">
+									<strong x-text="getMediaTitle( media )"></strong> (<span x-text="media.year"></span>)
+								</span><br>
+								<time-ago :datetime="getMediaAddedAtIso(media)"></time-ago>
+							</div>
+						</label>
+					</li>
+				</template>
+			</ul>
+
+			<button id="sendUpdate" type="button" @click="onclick_sendUpdate" x-show="selectedMediaKeys.length">Send update for <span x-text="selectedMediaKeys.length">0</span> media items</button>
+
+		</template>
+
+	</form>
+
+	<script type="module" src="/dist/index.js"></script>
+</body>
+
+</html>
