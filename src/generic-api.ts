@@ -30,4 +30,25 @@ export abstract class GenericApi {
 		return this.request( 'get', endpoint, options );
 	}
 
+	async post( endpoint: string, body: BodyInit, options: RequestInit = {} ) {
+
+		return this.request( 'post', endpoint, {
+			...options,
+			body,
+		} );
+
+	}
+
+	async postJson( endpoint: string, body: any, options: RequestInit = {} ) {
+
+		return this.post( endpoint, JSON.stringify( body ), {
+			...options,
+			headers: {
+				...options.headers,
+				'Content-Type': 'application/json',
+			},
+		} );
+
+	}
+
 }

@@ -23,45 +23,116 @@
 		<button type="button" @click="onclick_connectToServer">Connect to server</button>
 
 		<template x-if="server">
+			<div>
 
-			<h3>Connected to <span x-text="server.name"></span></h3>
+				<h3>Connected to <span x-text="server.name"></span></h3>
 
-			<label for="plexToken">Plex Libraries</label>
-			<ul>
-				<template x-for="section in librarySections" :key="section.key">
-					<li>
-						<label>
-							<input type="checkbox" x-model="selectedLibrarySectionsKeys" :value="section.key" />
-							<span x-text="section.title"></span>
-						</label>
-					</li>
-				</template>
-			</ul>
+				<label>Plex Libraries</label>
+				<ul>
+					<template x-for="section in librarySections" :key="section.key">
+						<li>
+							<label>
+								<input type="checkbox" x-model="selectedLibrarySectionsKeys" :value="section.key" />
+								<span x-text="section.title"></span>
+							</label>
+						</li>
+					</template>
+				</ul>
 
-			<br>
-			<button type="button" @click="onclick_getRecentlyAdded">Get recently added items from <span x-text="selectedLibrarySectionsKeys.length">0</span> sections</button>
+				<br>
+				<button type="button" @click="onclick_getRecentlyAdded">Get recently added items from <span x-text="selectedLibrarySectionsKeys.length">0</span> sections</button>
 
-			<h3 x-show="recentlyAdded.length">Recently added</h3>
+				<h3 x-show="recentlyAdded.length">Recently added</h3>
 
-			<ul class="recently-added-media">
-				<template x-for="media in recentlyAdded" :key="media.key">
-					<li>
-						<label>
-							<input type="checkbox" x-model="selectedMediaKeys" :value="media.key" />
-							<img :src="getMediaPoster( media )" loading="lazy" />
-							<div class="media-meta">
-								<span class="media-title">
-									<strong x-text="getMediaTitle( media )"></strong> (<span x-text="media.year"></span>)
-								</span><br>
-								<time-ago :datetime="getMediaAddedAtIso(media)"></time-ago>
+				<ul class="recently-added-media">
+					<template x-for="media in recentlyAdded" :key="media.key">
+						<li>
+							<label>
+								<input type="checkbox" x-model="selectedMediaKeys" :value="media.key" />
+								<img :src="getMediaPoster( media )" loading="lazy" />
+								<div class="media-meta">
+									<span class="media-title">
+										<strong x-text="getMediaTitle( media )"></strong> (<span x-text="media.year"></span>)
+									</span><br>
+									<time-ago :datetime="getMediaAddedAtIso(media)"></time-ago>
+								</div>
+							</label>
+						</li>
+					</template>
+				</ul>
+
+				<template x-if="selectedMediaKeys.length">
+					<div>
+
+						<h3>Email setup</h3>
+
+						<label for="mailjetApiPublic">Mailjet API Public Key</label>
+						<input type="text" id="mailjetApiPublic" autocomplete="mailjet-api-public-key" x-model="mailjetApiPublic" />
+						<br>
+						<label for="mailjetApiSecret">Mailjet API Secret Key</label>
+						<input type="text" id="mailjetApiSecret" autocomplete="mailjet-api-secret-key" x-model="mailjetApiSecret" />
+						<br>
+						<button type="button" @click="onclick_connectToMailjet">Connect to Mailjet</button>
+
+						<template x-if="mailjetProfile">
+							<div>
+
+								<h3>Connected to <span x-text="mailjetProfile.CompanyName"></span></h3>
+
+								<label for="mailjetLists">Mailjet Lists</label>
+								<select id="mailjetLists" x-model="mailjetSelectedListId">
+									<option value="">Select a list</option>
+									<template x-for="list in mailjetLists" :key="list.ID">
+										<option :value="list.ID" x-text="`${list.Name} (${list.SubscriberCount})`"></option>
+									</template>
+								</select>
+
+								<template x-if="mailjetSelectedListId">
+									<div>
+
+										<button type="button" @click="onclick_getContacts">Get contacts</button>
+
+										<label>Contacts</label>
+										<ul>
+											<template x-for="contact in mailjetContacts" :key="contact.ID">
+												<li>
+													<label>
+														<input type="checkbox" x-model="mailjetSelectedContactIds" :value="contact.ID" />
+														<span x-text="contact.Name || (no name)"></span>
+														(<span x-text="contact.Email"></span>)
+													</label>
+												</li>
+											</template>
+										</ul>
+
+										<template x-if="mailjetSelectedContactIds.length">
+											<div>
+
+												<label for="mailjetTemplates">Mailjet Templates</label>
+												<select id="mailjetTemplates" x-model="mailjetSelectedTemplateId">
+													<option value="">Select a template</option>
+													<template x-for="template in mailjetTemplates" :key="template.ID">
+														<option :value="template.ID" x-text="template.Name"></option>
+													</template>
+												</select>
+
+												<button id="sendUpdate" type="button" @click="onclick_sendUpdate" x-show="mailjetSelectedTemplateId">
+													Send update email to <span x-text="mailjetSelectedContactIds.length">0</span> contacts
+												</button>
+
+											</div>
+										</template>
+
+									</div>
+								</template>
+
 							</div>
-						</label>
-					</li>
+						</template>
+
+					</div>
 				</template>
-			</ul>
 
-			<button id="sendUpdate" type="button" @click="onclick_sendUpdate" x-show="selectedMediaKeys.length">Send update for <span x-text="selectedMediaKeys.length">0</span> media items</button>
-
+			</div>
 		</template>
 
 	</form>

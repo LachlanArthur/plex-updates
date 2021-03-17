@@ -4,6 +4,7 @@
 
 body {
 	font-family: sans-serif;
+	background-color: white;
 }
 
 label,
@@ -24,6 +25,9 @@ img {
 .recently-added-media {
 	list-style-type: none;
 	padding: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, 100px);
+	gap: 20px;
 }
 
 	.recently-added-media li {
@@ -33,7 +37,8 @@ img {
 	.recently-added-media label {
 		display: grid;
 		grid-template-areas:
-			'image meta'
+			'image'
+			'meta'
 		;
 		grid-template-columns: 100px auto;
 		gap: 0.5rem;
@@ -85,9 +90,3 @@ img {
 		.recently-added-media .media-meta {
 			grid-area: meta;
 		}
-
-#sendUpdate {
-	position: fixed;
-	bottom: 1rem;
-	right: 1rem;
-}
