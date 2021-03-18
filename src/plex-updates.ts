@@ -17,7 +17,7 @@ export class PlexUpdates extends AlpineApp {
 	mailjetLists: Mailjet.ContactList[] = [];
 	mailjetSelectedListId: string = '';
 	mailjetContacts: Mailjet.Contact[] = [];
-	mailjetSelectedContactIds: number[] = [];
+	mailjetSelectedContactIds: string[] = [];
 	mailjetTemplates: Mailjet.Template[] = [];
 	mailjetSelectedTemplateId: string = '';
 
@@ -27,6 +27,9 @@ export class PlexUpdates extends AlpineApp {
 
 	selectedLibrarySectionsKeys: string[] = [];
 	selectedMediaKeys: string[] = [];
+
+	campaignFromName: string = '';
+	campaignFromEmail: string = '';
 
 	constructor() {
 		super();
@@ -41,8 +44,10 @@ export class PlexUpdates extends AlpineApp {
 		this.mailjetApiPublic = localStorage.getItem( 'mailjetApiPublic' ) || '';
 		this.mailjetApiSecret = localStorage.getItem( 'mailjetApiSecret' ) || '';
 		this.mailjetSelectedListId = localStorage.getItem( 'mailjetSelectedListId' ) || '';
+		this.mailjetSelectedTemplateId = localStorage.getItem( 'mailjetSelectedTemplateId' ) || '';
 
-		this.mailjetSelectedContactIds = ( localStorage.getItem( 'mailjetSelectedContactIds' ) || '' ).split( ',' ).filter( String ).map( Number );
+		this.campaignFromName = localStorage.getItem( 'campaignFromName' ) || '';
+		this.campaignFromEmail = localStorage.getItem( 'campaignFromEmail' ) || '';
 
 		this.mailjet = new Mailjet( this.mailjetApiPublic, this.mailjetApiSecret );
 	}
@@ -75,10 +80,19 @@ export class PlexUpdates extends AlpineApp {
 
 		this.$watch( 'mailjetSelectedListId', ( value: string ) => {
 			localStorage.setItem( 'mailjetSelectedListId', value );
+			this.getContacts();
 		} );
 
-		this.$watch( 'mailjetSelectedContactIds', ( value: number[] ) => {
-			localStorage.setItem( 'mailjetSelectedContactIds', value.join( ',' ) );
+		this.$watch( 'mailjetSelectedTemplateId', ( value: string ) => {
+			localStorage.setItem( 'mailjetSelectedTemplateId', value );
+		} );
+
+		this.$watch( 'campaignFromName', ( value: string ) => {
+			localStorage.setItem( 'campaignFromName', value );
+		} );
+
+		this.$watch( 'campaignFromEmail', ( value: string ) => {
+			localStorage.setItem( 'campaignFromEmail', value );
 		} );
 
 	}
@@ -244,35 +258,6 @@ export class PlexUpdates extends AlpineApp {
 
 	}
 
-	async onclick_sendUpdate() {
-
-		const selectedMedia = this.recentlyAdded.filter( media => this.selectedMediaKeys.includes( media.key ) );
-
-		const data: Record<string, string>[] = [];
-
-		for ( const media of selectedMedia ) {
-
-			const poster = this.getMediaPoster( media );
-			const background = this.getMediaBackground( media );
-
-			data.push( {
-				title: this.getMediaTitle( media ),
-				poster,
-				posterData: await this.downloadImage( poster ),
-				background,
-				backgroundData: await this.downloadImage( background ),
-				year: media.year.toString(),
-				href: `https://app.plex.tv/desktop#!/server/${this.server.machineIdentifier}/details?` + new URLSearchParams( { key: media.key } ).toString(),
-				genres: ( media.Genre || [] ).map( genre => genre.tag ).join( ', ' ),
-				summary: media.summary,
-			} );
-
-		}
-
-		console.log( selectedMedia, data );
-
-	}
-
 	getMediaAddedAtIso( media: Plex.Metadata ) {
 		return new Date( media.addedAt * 1000 ).toISOString();
 	}
@@ -281,7 +266,7 @@ export class PlexUpdates extends AlpineApp {
 		return new Date( media.addedAt * 1000 ).toLocaleDateString();
 	}
 
-	async downloadImage( url: string ): Promise<string> {
+	async downloadImage( url: string ): Promise<{ type: string, data: string }> {
 
 		try {
 
@@ -304,10 +289,18 @@ export class PlexUpdates extends AlpineApp {
 				throw new Error();
 			}
 
-			return reader.result as string;
+			const [ dataUri, type, data ] = reader.result.toString().match( /^data:(.+?)(?:;.+?)*;base64,(.+)$/ ) || [];
+
+			return {
+				type,
+				data,
+			};
 
 		} catch ( e ) {
-			return 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+			return {
+				type: 'image/gif',
+				data: 'R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+			};
 		}
 
 	}
@@ -324,11 +317,17 @@ export class PlexUpdates extends AlpineApp {
 
 		this.mailjetLists = await this.mailjet.getLists();
 
+		await this.getContacts();
+
 		this.mailjetTemplates = await this.mailjet.getTemplates();
 
 	}
 
-	async onclick_getContacts() {
+	async getContacts() {
+
+		this.mailjetSelectedContactIds = [];
+
+		if ( !this.mailjetSelectedListId ) return;
 
 		try {
 			this.mailjetContacts = await this.mailjet.getContacts( parseInt( this.mailjetSelectedListId ) );
@@ -337,6 +336,104 @@ export class PlexUpdates extends AlpineApp {
 			console.error( e );
 			return;
 		}
+
+	}
+
+	async onclick_sendUpdate() {
+
+		const selectedMedia = this.recentlyAdded.filter( media => this.selectedMediaKeys.includes( media.key ) );
+
+		const emails: Mailjet.SendOptions = {
+			Messages: [],
+			Globals: {
+				From: {
+					Name: this.campaignFromName,
+					Email: this.campaignFromEmail,
+				},
+				TemplateErrorReporting: {
+					Name: this.campaignFromName,
+					Email: this.campaignFromEmail,
+				},
+				Subject: `What's new on Plex`,
+				InlinedAttachments: [],
+				Variables: {},
+				TemplateID: parseInt( this.mailjetSelectedTemplateId ),
+				TemplateLanguage: true,
+				CustomCampaign: 'Plex Updates for ' + new Intl.DateTimeFormat( 'en-AU', { dateStyle: 'long' } ).format( new Date() ),
+			},
+			// SandboxMode: true,
+		};
+
+		const updates: {
+			backgroundCid: string,
+			posterCid: string,
+			href: string,
+			title: string,
+			year: string,
+			summary: string,
+			genres: string,
+		}[] = [];
+
+		let mediaIndex = 0;
+		for ( const media of selectedMedia ) {
+
+			const poster = this.getMediaPoster( media );
+			const background = this.getMediaBackground( media );
+
+			const posterData = await this.downloadImage( poster );
+			const backgroundData = await this.downloadImage( background );
+
+			emails.Globals!.InlinedAttachments?.push( {
+				ContentType: posterData.type,
+				Base64Content: posterData.data,
+				Filename: `media-${mediaIndex}-poster.jpg`,
+				ContentID: `media-${mediaIndex}-poster`,
+			} );
+
+			emails.Globals!.InlinedAttachments?.push( {
+				ContentType: backgroundData.type,
+				Base64Content: backgroundData.data,
+				Filename: `media-${mediaIndex}-background.jpg`,
+				ContentID: `media-${mediaIndex}-background`,
+			} );
+
+			updates.push( {
+				backgroundCid: `cid:media-${mediaIndex}-background`,
+				posterCid: `cid:media-${mediaIndex}-poster`,
+				href: `https://app.plex.tv/desktop#!/server/${this.server.machineIdentifier}/details?` + new URLSearchParams( { key: media.key } ).toString(),
+				title: this.getMediaTitle( media ),
+				year: media.year.toString(),
+				summary: media.summary,
+				genres: ( media.Genre || [] ).map( genre => genre.tag ).join( ', ' ),
+			} );
+
+			mediaIndex++;
+		}
+
+		const contacts = this.mailjetContacts.filter( contact => this.mailjetSelectedContactIds.includes( contact.ID.toString() ) );
+
+		if ( !contacts.length ) {
+			console.error( 'No contacts selected' );
+			return;
+		}
+
+		for ( const contact of contacts ) {
+			emails.Messages.push( {
+				To: [ {
+					Name: contact.Name,
+					Email: contact.Email,
+				} ],
+			} );
+		}
+
+		emails.Globals!.Variables = {
+			...emails.Globals!.Variables,
+			updates,
+		};
+
+		this.mailjet.sendTransactionalEmail( emails );
+
+		// console.log( emails );
 
 	}
 

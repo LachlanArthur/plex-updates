@@ -69,27 +69,16 @@ export class Mailjet extends GenericApi {
 
 	}
 
-	async sendTransactionalEmail(  templateId: number, subject: string, vars: Record<string, string>, attachments: Mailjet.Attachment[] ) {
+	async sendTransactionalEmail( sendOptions: Mailjet.SendOptions, options: RequestInit = {} ) {
 
-		// const options: Mailjet.SendOptions = {
-		// 	Messages: [
-		// 		{
-		// 			From: 
-		// 		}
-		// 	]
-		// }
-
-		// const response = await this.postJson( '/v3.1/send', {
-		// 	Messages: [],
-		// 	Attachments: attachments,
-		// } );
+		const response = await this.postJson( '/v3.1/send', sendOptions, options );
 	
-		// if ( !response.ok ) {
-		// 	console.error( response );
-		// 	throw new Error( response.statusText );
-		// }
+		if ( !response.ok ) {
+			console.error( response );
+			throw new Error( response.statusText );
+		}
 	
-		// const data = await response.json();
+		const data = await response.json();
 	
 	
 	}
@@ -103,18 +92,18 @@ export namespace Mailjet {
 		Messages: Message[],
 		SandboxMode?: boolean,
 		AdvanceErrorHandling?: boolean,
-		Globals?: Record<string, any>,
+		Globals?: Partial<Omit<Message, 'To'>>,
 
 	}
 
 	export interface Message {
-		From: EmailAddress,
+		From?: EmailAddress,
 		Sender?: EmailAddress,
 		To?: EmailAddress[],
 		Cc?: EmailAddress[],
 		Bcc?: EmailAddress[],
-		ReplyTo: EmailAddress,
-		Subject: string,
+		ReplyTo?: EmailAddress,
+		Subject?: string,
 		TextPart?: string,
 		HTMLPart?: string,
 		TemplateID?: number,

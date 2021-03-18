@@ -8,11 +8,14 @@ export abstract class GenericApi {
 
 	async request( method: string, endpoint: string, options: RequestInit = {} ) {
 
+		options.method = method;
+
 		options = this.filterRequestOptions( options, method, endpoint );
 
 		const response = await fetch( new URL( endpoint, this.host ).toString(), options );
 
 		if ( !response.ok ) {
+			console.error( response );
 			throw new Error( response.statusText );
 		}
 

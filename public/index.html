@@ -87,44 +87,39 @@
 									</template>
 								</select>
 
-								<template x-if="mailjetSelectedListId">
-									<div>
+								<br>
+								<label>Contacts</label>
+								<ul>
+									<template x-for="contact in mailjetContacts" :key="contact.ID">
+										<li>
+											<label>
+												<input type="checkbox" x-model="mailjetSelectedContactIds" :value="contact.ID" />
+												<span x-text="contact.Name"></span>
+												(<span x-text="contact.Email"></span>)
+											</label>
+										</li>
+									</template>
+								</ul>
 
-										<button type="button" @click="onclick_getContacts">Get contacts</button>
+								<label for="mailjetTemplates">Mailjet Templates</label>
+								<select id="mailjetTemplates" x-model="mailjetSelectedTemplateId">
+									<option value="">Select a template</option>
+									<template x-for="template in mailjetTemplates" :key="template.ID">
+										<option :value="template.ID" x-text="template.Name"></option>
+									</template>
+								</select>
 
-										<label>Contacts</label>
-										<ul>
-											<template x-for="contact in mailjetContacts" :key="contact.ID">
-												<li>
-													<label>
-														<input type="checkbox" x-model="mailjetSelectedContactIds" :value="contact.ID" />
-														<span x-text="contact.Name || (no name)"></span>
-														(<span x-text="contact.Email"></span>)
-													</label>
-												</li>
-											</template>
-										</ul>
+								<br>
+								<label for="campaignFromName">Email campaign from name</label>
+								<input type="text" id="campaignFromName" autocomplete="email-campaign-from-name" x-model="campaignFromName" />
+								<br>
+								<label for="campaignFromEmail">Email campaign from email</label>
+								<input type="email" id="campaignFromEmail" autocomplete="email-campaign-from-email" x-model="campaignFromEmail" />
+								<br>
 
-										<template x-if="mailjetSelectedContactIds.length">
-											<div>
-
-												<label for="mailjetTemplates">Mailjet Templates</label>
-												<select id="mailjetTemplates" x-model="mailjetSelectedTemplateId">
-													<option value="">Select a template</option>
-													<template x-for="template in mailjetTemplates" :key="template.ID">
-														<option :value="template.ID" x-text="template.Name"></option>
-													</template>
-												</select>
-
-												<button id="sendUpdate" type="button" @click="onclick_sendUpdate" x-show="mailjetSelectedTemplateId">
-													Send update email to <span x-text="mailjetSelectedContactIds.length">0</span> contacts
-												</button>
-
-											</div>
-										</template>
-
-									</div>
-								</template>
+								<button id="sendUpdate" type="button" @click="onclick_sendUpdate" x-show="mailjetSelectedListId && mailjetSelectedContactIds.length && mailjetSelectedTemplateId">
+									Send update email to <span x-text="mailjetSelectedContactIds.length">0</span> contacts
+								</button>
 
 							</div>
 						</template>
