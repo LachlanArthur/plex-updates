@@ -2,7 +2,7 @@
   "scripts": {
     "start": "snowpack dev",
     "build": "snowpack build",
-	"desktop": "snowpack build & electron ."
+    "desktop": "snowpack build & electron ."
   },
   "dependencies": {
     "@github/time-elements": "^3.1.1",
