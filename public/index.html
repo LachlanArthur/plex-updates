@@ -66,59 +66,76 @@
 
 						<h3>Email setup</h3>
 
-						<label for="mailjetApiPublic">Mailjet API Public Key</label>
-						<input type="text" id="mailjetApiPublic" autocomplete="mailjet-api-public-key" x-model="mailjetApiPublic" />
+						<label for="jmapHost">JMAP Host</label>
+						<input type="url" id="jmapHost" autocomplete="jmap-host" x-model="jmapHost" />
 						<br>
-						<label for="mailjetApiSecret">Mailjet API Secret Key</label>
-						<input type="text" id="mailjetApiSecret" autocomplete="mailjet-api-secret-key" x-model="mailjetApiSecret" />
+						<label for="jmapUsername">JMAP Username</label>
+						<input type="text" id="jmapUsername" autocomplete="jmap-username" x-model="jmapUsername" />
 						<br>
-						<button type="button" @click="onclick_connectToMailjet">Connect to Mailjet</button>
+						<label for="jmapPassword">JMAP Password</label>
+						<input type="password" id="jmapPassword" autocomplete="jmap-password" x-model="jmapPassword" />
+						<br>
+						<button type="button" @click="onclick_connectToJmap">Connect to JMAP</button>
 
-						<template x-if="mailjetProfile">
+						<template x-if="jmapDraftMailboxId">
 							<div>
 
-								<h3>Connected to <span x-text="mailjetProfile.CompanyName"></span></h3>
+								<p>Connected to JMAP</p>
 
-								<label for="mailjetLists">Mailjet Lists</label>
-								<select id="mailjetLists" x-model="mailjetSelectedListId">
-									<option value="">Select a list</option>
-									<template x-for="list in mailjetLists" :key="list.ID">
-										<option :value="list.ID" x-text="`${list.Name} (${list.SubscriberCount})`"></option>
-									</template>
-								</select>
+								<h3>Contacts</h3>
+								<table>
+									<colgroup>
+										<col>
+										<col>
+										<col width="1%">
+									</colgroup>
+									<thead>
+										<tr>
+											<th>Name</th>
+											<th>Email</th>
+											<th>&nbsp;</th>
+										</tr>
+									</thead>
+									<tbody>
+										<template x-for="(contact, index) in jmapContacts" :key="index">
+											<tr>
+												<td>
+													<input type="text" x-model="contact.name" />
+												</td>
+												<td>
+													<input type="email" x-model="contact.email" />
+												</td>
+												<td>
+													<button type="button" @click="onclick_removeContact(index)">×</button>
+												</td>
+											</tr>
+										</template>
+										<tr>
+											<td colspan="3">
+												<button type="button" @click="onclick_addContact">Add contact</button>
+											</td>
+										</tr>
+									</tbody>
+								</table>
 
-								<br>
-								<label>Contacts</label>
-								<ul>
-									<template x-for="contact in mailjetContacts" :key="contact.ID">
-										<li>
-											<label>
-												<input type="checkbox" x-model="mailjetSelectedContactIds" :value="contact.ID" />
-												<span x-text="contact.Email"></span>
-											</label>
-										</li>
-									</template>
-								</ul>
+								<p>Email from</p>
 
-								<label for="mailjetTemplates">Mailjet Templates</label>
-								<select id="mailjetTemplates" x-model="mailjetSelectedTemplateId">
-									<option value="">Select a template</option>
-									<template x-for="template in mailjetTemplates" :key="template.ID">
-										<option :value="template.ID" x-text="template.Name"></option>
-									</template>
-								</select>
+								<table>
+									<tr>
+										<th><label for="jmapFromName">Name</label></th>
+										<th><label for="jmapFromEmail">Email</label></th>
+									</tr>
+									<tr>
+										<td><input type="text" id="jmapFromName" autocomplete="jmap-from-name" x-model="jmapFromName" /></td>
+										<td><input type="email" id="jmapFromEmail" autocomplete="jmap-from-email" x-model="jmapFromEmail" /></td>
+									</tr>
+								</table>
 
-								<br>
-								<label for="campaignFromName">Email campaign from name</label>
-								<input type="text" id="campaignFromName" autocomplete="email-campaign-from-name" x-model="campaignFromName" />
-								<br>
-								<label for="campaignFromEmail">Email campaign from email</label>
-								<input type="email" id="campaignFromEmail" autocomplete="email-campaign-from-email" x-model="campaignFromEmail" />
-								<br>
-
-								<button id="sendUpdate" type="button" @click="onclick_sendUpdate" x-show="mailjetSelectedListId && mailjetSelectedContactIds.length && mailjetSelectedTemplateId">
-									Send update email to <span x-text="mailjetSelectedContactIds.length">0</span> contacts
+								<button type="button" :disabled="!jmapContacts.length" @click="onclick_sendUpdate">
+									Create draft update emails for <span x-text="jmapContacts.length">0</span> contacts
 								</button>
+
+								<p x-show="jmapCreateSuccess">Success</p>
 
 							</div>
 						</template>

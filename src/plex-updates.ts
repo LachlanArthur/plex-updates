@@ -3,6 +3,8 @@ import { PlexApi } from './plex-api';
 
 import type { Plex } from 'types/plex-api';
 import { Mailjet } from './mailjet';
+import { JMAP } from './jmap';
+import type { JmapApi } from 'types/jmap-api';
 
 export class PlexUpdates extends AlpineApp {
 
@@ -10,16 +12,15 @@ export class PlexUpdates extends AlpineApp {
 	plexToken: string = '';
 	plexApi: PlexApi;
 
-	mailjet: Mailjet;
-	mailjetApiPublic: string = '';
-	mailjetApiSecret: string = '';
-	mailjetProfile: Mailjet.Profile | null = null;
-	mailjetLists: Mailjet.ContactList[] = [];
-	mailjetSelectedListId: string = '';
-	mailjetContacts: Mailjet.Contact[] = [];
-	mailjetSelectedContactIds: string[] = [];
-	mailjetTemplates: Mailjet.Template[] = [];
-	mailjetSelectedTemplateId: string = '';
+	jmap: JMAP;
+	jmapHost: string = '';
+	jmapUsername: string = '';
+	jmapPassword: string = '';
+	jmapDraftMailboxId: string = '';
+	jmapContacts: JmapApi.EmailAddress[] = [];
+	jmapFromName: string = '';
+	jmapFromEmail: string = '';
+	jmapCreateSuccess: any = null;
 
 	servers: Plex.Server[] = [];
 	librarySections: Plex.Directory[] = [];
@@ -27,9 +28,6 @@ export class PlexUpdates extends AlpineApp {
 
 	selectedLibrarySectionsKeys: string[] = [];
 	selectedMediaKeys: string[] = [];
-
-	campaignFromName: string = '';
-	campaignFromEmail: string = '';
 
 	constructor() {
 		super();
@@ -41,15 +39,14 @@ export class PlexUpdates extends AlpineApp {
 
 		this.plexApi = new PlexApi( this.plexUrl, this.plexToken );
 
-		this.mailjetApiPublic = localStorage.getItem( 'mailjetApiPublic' ) || '';
-		this.mailjetApiSecret = localStorage.getItem( 'mailjetApiSecret' ) || '';
-		this.mailjetSelectedListId = localStorage.getItem( 'mailjetSelectedListId' ) || '';
-		this.mailjetSelectedTemplateId = localStorage.getItem( 'mailjetSelectedTemplateId' ) || '';
+		this.jmapHost = localStorage.getItem( 'jmapHost' ) || '';
+		this.jmapUsername = localStorage.getItem( 'jmapUsername' ) || '';
+		this.jmapPassword = localStorage.getItem( 'jmapPassword' ) || '';
+		this.jmapContacts = Array.from<JmapApi.EmailAddress>( JSON.parse( localStorage.getItem( 'jmapContacts' ) || '[]' ) ).filter( Boolean );
+		this.jmapFromName = localStorage.getItem( 'jmapFromName' ) || '';
+		this.jmapFromEmail = localStorage.getItem( 'jmapFromEmail' ) || '';
 
-		this.campaignFromName = localStorage.getItem( 'campaignFromName' ) || '';
-		this.campaignFromEmail = localStorage.getItem( 'campaignFromEmail' ) || '';
-
-		this.mailjet = new Mailjet( this.mailjetApiPublic, this.mailjetApiSecret );
+		this.jmap = new JMAP( this.jmapHost, this.jmapUsername, this.jmapPassword );
 	}
 
 	init() {
@@ -68,31 +65,31 @@ export class PlexUpdates extends AlpineApp {
 			localStorage.setItem( 'selectedLibrarySectionsKeys', value.join( ',' ) );
 		} );
 
-		this.$watch( 'mailjetApiPublic', ( value: string ) => {
-			localStorage.setItem( 'mailjetApiPublic', value );
-			this.mailjet.public_api_key = value;
+		this.$watch( 'jmapHost', ( value: string ) => {
+			localStorage.setItem( 'jmapHost', value );
+			this.jmap.host = value;
 		} );
 
-		this.$watch( 'mailjetApiSecret', ( value: string ) => {
-			localStorage.setItem( 'mailjetApiSecret', value );
-			this.mailjet.private_api_key = value;
+		this.$watch( 'jmapUsername', ( value: string ) => {
+			localStorage.setItem( 'jmapUsername', value );
+			this.jmap.username = value;
 		} );
 
-		this.$watch( 'mailjetSelectedListId', ( value: string ) => {
-			localStorage.setItem( 'mailjetSelectedListId', value );
-			this.getContacts();
+		this.$watch( 'jmapPassword', ( value: string ) => {
+			localStorage.setItem( 'jmapPassword', value );
+			this.jmap.password = value;
 		} );
 
-		this.$watch( 'mailjetSelectedTemplateId', ( value: string ) => {
-			localStorage.setItem( 'mailjetSelectedTemplateId', value );
+		this.$watch( 'jmapContacts', ( value: JmapApi.EmailAddress[] ) => {
+			localStorage.setItem( 'jmapContacts', JSON.stringify( value.filter( Boolean ) ) );
 		} );
 
-		this.$watch( 'campaignFromName', ( value: string ) => {
-			localStorage.setItem( 'campaignFromName', value );
+		this.$watch( 'jmapFromName', ( value: string ) => {
+			localStorage.setItem( 'jmapFromName', value );
 		} );
 
-		this.$watch( 'campaignFromEmail', ( value: string ) => {
-			localStorage.setItem( 'campaignFromEmail', value );
+		this.$watch( 'jmapFromEmail', ( value: string ) => {
+			localStorage.setItem( 'jmapFromEmail', value );
 		} );
 
 	}
@@ -305,35 +302,13 @@ export class PlexUpdates extends AlpineApp {
 
 	}
 
-	async onclick_connectToMailjet() {
+	async onclick_connectToJmap() {
 
 		try {
-			this.mailjetProfile = await this.mailjet.getMyProfile();
+			this.jmapDraftMailboxId = await this.jmap.getDraftsMailbox();
 		} catch ( e ) {
 			console.error( e );
-			this.mailjetProfile = null;
-			return;
-		}
-
-		this.mailjetLists = await this.mailjet.getLists();
-
-		await this.getContacts();
-
-		this.mailjetTemplates = await this.mailjet.getTemplates();
-
-	}
-
-	async getContacts() {
-
-		this.mailjetSelectedContactIds = [];
-
-		if ( !this.mailjetSelectedListId ) return;
-
-		try {
-			this.mailjetContacts = await this.mailjet.getContacts( parseInt( this.mailjetSelectedListId ) );
-		} catch ( e ) {
-			this.mailjetContacts = [];
-			console.error( e );
+			this.jmapDraftMailboxId = '';
 			return;
 		}
 
@@ -341,100 +316,146 @@ export class PlexUpdates extends AlpineApp {
 
 	async onclick_sendUpdate() {
 
+		this.jmapCreateSuccess = null;
+
 		const selectedMedia = this.recentlyAdded.filter( media => this.selectedMediaKeys.includes( media.key ) );
 
-		const emails: Mailjet.SendOptions = {
-			Messages: [],
-			Globals: {
-				From: {
-					Name: this.campaignFromName,
-					Email: this.campaignFromEmail,
-				},
-				TemplateErrorReporting: {
-					Name: this.campaignFromName,
-					Email: this.campaignFromEmail,
-				},
-				Subject: `What's new on Plex`,
-				InlinedAttachments: [],
-				Variables: {},
-				TemplateID: parseInt( this.mailjetSelectedTemplateId ),
-				TemplateLanguage: true,
-				CustomCampaign: 'Plex Updates for ' + new Intl.DateTimeFormat( 'en-AU', { dateStyle: 'long' } ).format( new Date() ),
-			},
-			// SandboxMode: true,
-		};
+		// let mediaIndex = 0;
+		// for ( const media of selectedMedia ) {
 
-		const updates: {
-			backgroundCid: string,
-			posterCid: string,
-			href: string,
-			title: string,
-			year: string,
-			summary: string,
-			genres: string,
-		}[] = [];
+		// 	const poster = this.getMediaPoster( media );
+		// 	const background = this.getMediaBackground( media );
 
-		let mediaIndex = 0;
-		for ( const media of selectedMedia ) {
+		// 	const posterData = await this.downloadImage( poster );
+		// 	const backgroundData = await this.downloadImage( background );
 
-			const poster = this.getMediaPoster( media );
-			const background = this.getMediaBackground( media );
+		// 	mj_emails.Globals!.InlinedAttachments?.push( {
+		// 		ContentType: posterData.type,
+		// 		Base64Content: posterData.data,
+		// 		Filename: `media-${mediaIndex}-poster.jpg`,
+		// 		ContentID: `media-${mediaIndex}-poster`,
+		// 	} );
 
-			const posterData = await this.downloadImage( poster );
-			const backgroundData = await this.downloadImage( background );
+		// 	mj_emails.Globals!.InlinedAttachments?.push( {
+		// 		ContentType: backgroundData.type,
+		// 		Base64Content: backgroundData.data,
+		// 		Filename: `media-${mediaIndex}-background.jpg`,
+		// 		ContentID: `media-${mediaIndex}-background`,
+		// 	} );
 
-			emails.Globals!.InlinedAttachments?.push( {
-				ContentType: posterData.type,
-				Base64Content: posterData.data,
-				Filename: `media-${mediaIndex}-poster.jpg`,
-				ContentID: `media-${mediaIndex}-poster`,
-			} );
+		// 	mj_updates.push( {
+		// 		backgroundCid: `cid:media-${mediaIndex}-background`,
+		// 		posterCid: `cid:media-${mediaIndex}-poster`,
+		// 		href: `https://app.plex.tv/desktop#!/server/${this.server.machineIdentifier}/details?` + new URLSearchParams( { key: media.key } ).toString(),
+		// 		title: this.getMediaTitle( media ),
+		// 		year: media.year.toString(),
+		// 		summary: media.summary,
+		// 		genres: ( media.Genre || [] ).map( genre => genre.tag ).join( ', ' ),
+		// 	} );
 
-			emails.Globals!.InlinedAttachments?.push( {
-				ContentType: backgroundData.type,
-				Base64Content: backgroundData.data,
-				Filename: `media-${mediaIndex}-background.jpg`,
-				ContentID: `media-${mediaIndex}-background`,
-			} );
+		// 	mediaIndex++;
+		// }
 
-			updates.push( {
-				backgroundCid: `cid:media-${mediaIndex}-background`,
-				posterCid: `cid:media-${mediaIndex}-poster`,
-				href: `https://app.plex.tv/desktop#!/server/${this.server.machineIdentifier}/details?` + new URLSearchParams( { key: media.key } ).toString(),
-				title: this.getMediaTitle( media ),
-				year: media.year.toString(),
-				summary: media.summary,
-				genres: ( media.Genre || [] ).map( genre => genre.tag ).join( ', ' ),
-			} );
+		const emails: Partial<JmapApi.Email>[] = this.jmapContacts.map( contact => ( {
+			from: [ { name: this.jmapFromName, email: this.jmapFromEmail } ],
+			to: [ contact ],
+			subject: `What’s new on Plex`,
+			keywords: { $draft: true },
+			mailboxIds: { [ this.jmapDraftMailboxId ]: true },
+			bodyValues: { body: { value: 'Hello!\n\nThis email was sent using JMAP.' } },
+			textBody: [ { partId: 'body', type: 'text/plain' } ],
+		} ) );
 
-			mediaIndex++;
-		}
+		this.jmapCreateSuccess = await this.jmap.createEmails( ...emails );
 
-		const contacts = this.mailjetContacts.filter( contact => this.mailjetSelectedContactIds.includes( contact.ID.toString() ) );
 
-		if ( !contacts.length ) {
-			console.error( 'No contacts selected' );
-			return;
-		}
 
-		for ( const contact of contacts ) {
-			emails.Messages.push( {
-				To: [ {
-					Name: contact.Name,
-					Email: contact.Email,
-				} ],
-			} );
-		}
 
-		emails.Globals!.Variables = {
-			...emails.Globals!.Variables,
-			updates,
-		};
 
-		this.mailjet.sendTransactionalEmail( emails );
 
-		// console.log( emails );
+		// const mj_updates: {
+		// 	backgroundCid: string,
+		// 	posterCid: string,
+		// 	href: string,
+		// 	title: string,
+		// 	year: string,
+		// 	summary: string,
+		// 	genres: string,
+		// }[] = [];
 
+		// let mediaIndex = 0;
+		// for ( const media of selectedMedia ) {
+
+		// 	const poster = this.getMediaPoster( media );
+		// 	const background = this.getMediaBackground( media );
+
+		// 	const posterData = await this.downloadImage( poster );
+		// 	const backgroundData = await this.downloadImage( background );
+
+		// 	mj_emails.Globals!.InlinedAttachments?.push( {
+		// 		ContentType: posterData.type,
+		// 		Base64Content: posterData.data,
+		// 		Filename: `media-${mediaIndex}-poster.jpg`,
+		// 		ContentID: `media-${mediaIndex}-poster`,
+		// 	} );
+
+		// 	mj_emails.Globals!.InlinedAttachments?.push( {
+		// 		ContentType: backgroundData.type,
+		// 		Base64Content: backgroundData.data,
+		// 		Filename: `media-${mediaIndex}-background.jpg`,
+		// 		ContentID: `media-${mediaIndex}-background`,
+		// 	} );
+
+		// 	mj_updates.push( {
+		// 		backgroundCid: `cid:media-${mediaIndex}-background`,
+		// 		posterCid: `cid:media-${mediaIndex}-poster`,
+		// 		href: `https://app.plex.tv/desktop#!/server/${this.server.machineIdentifier}/details?` + new URLSearchParams( { key: media.key } ).toString(),
+		// 		title: this.getMediaTitle( media ),
+		// 		year: media.year.toString(),
+		// 		summary: media.summary,
+		// 		genres: ( media.Genre || [] ).map( genre => genre.tag ).join( ', ' ),
+		// 	} );
+
+		// 	mediaIndex++;
+		// }
+
+		// const mj_contacts = this.mailjetContacts.filter( contact => this.mailjetSelectedContactIds.includes( contact.ID.toString() ) );
+
+		// if ( !mj_contacts.length ) {
+		// 	console.error( 'No contacts selected' );
+		// 	return;
+		// }
+
+		// for ( const contact of mj_contacts ) {
+		// 	mj_emails.Messages.push( {
+		// 		To: [ {
+		// 			Name: contact.Name,
+		// 			Email: contact.Email,
+		// 		} ],
+		// 	} );
+		// }
+
+		// mj_emails.Globals!.Variables = {
+		// 	...mj_emails.Globals!.Variables,
+		// 	updates: mj_updates,
+		// };
+
+		// this.mailjet.sendTransactionalEmail( mj_emails );
+
+		// // console.log( emails );
+
+	}
+
+	addContact() {
+		this.jmapContacts.push( { name: '', email: '' } );
+	}
+
+	removeContact( index: number ) {
+		this.jmapContacts.splice( index, 1 );
+	}
+
+	buildEmailTemplate() {
+		
 	}
 
 }
