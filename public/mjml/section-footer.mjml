@@ -1,0 +1,7 @@
+<mj-section background-color="#ffffff" background-size="auto" padding="20px 0" text-align="center">
+	<mj-column>
+		<mj-text align="left" color="#5e6977" font-size="14px" padding="10px 25px">
+			<p><a href="{{ unsubscribe }}" target="_blank">unsubscribe</a></p>
+		</mj-text>
+	</mj-column>
+</mj-section>

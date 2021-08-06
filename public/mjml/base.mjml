@@ -1,0 +1,13 @@
+<mjml owa="desktop" version="4.6.3">
+	<mj-head>
+		<mj-preview></mj-preview>
+		<mj-attributes>
+			<mj-text font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'" font-size="18px" color="#5e6977" />
+		</mj-attributes>
+	</mj-head>
+	<mj-body background-color="#F4F4F4">
+
+		{!! sections !!}
+
+	</mj-body>
+</mjml>

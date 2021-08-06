@@ -2,9 +2,10 @@ import { AlpineApp } from './alpine';
 import { PlexApi } from './plex-api';
 
 import type { Plex } from 'types/plex-api';
-import { Mailjet } from './mailjet';
 import { JMAP } from './jmap';
 import type { JmapApi } from 'types/jmap-api';
+import { MjmlTemplate } from './mjml';
+import { ImgurClient } from './imgur';
 
 export class PlexUpdates extends AlpineApp {
 
@@ -21,6 +22,9 @@ export class PlexUpdates extends AlpineApp {
 	jmapFromName: string = '';
 	jmapFromEmail: string = '';
 	jmapCreateSuccess: any = null;
+
+	imgur: ImgurClient;
+	imgurClientId: string = '';
 
 	servers: Plex.Server[] = [];
 	librarySections: Plex.Directory[] = [];
@@ -47,6 +51,9 @@ export class PlexUpdates extends AlpineApp {
 		this.jmapFromEmail = localStorage.getItem( 'jmapFromEmail' ) || '';
 
 		this.jmap = new JMAP( this.jmapHost, this.jmapUsername, this.jmapPassword );
+
+		this.imgurClientId = localStorage.getItem( 'imgurClientId' ) || '';
+		this.imgur = new ImgurClient( this.imgurClientId );
 	}
 
 	init() {
@@ -90,6 +97,11 @@ export class PlexUpdates extends AlpineApp {
 
 		this.$watch( 'jmapFromEmail', ( value: string ) => {
 			localStorage.setItem( 'jmapFromEmail', value );
+		} );
+
+		this.$watch( 'imgurClientId', ( value: string ) => {
+			localStorage.setItem( 'imgurClientId', value );
+			this.imgur.clientId = this.imgurClientId;
 		} );
 
 	}
@@ -263,42 +275,15 @@ export class PlexUpdates extends AlpineApp {
 		return new Date( media.addedAt * 1000 ).toLocaleDateString();
 	}
 
-	async downloadImage( url: string ): Promise<{ type: string, data: string }> {
+	async downloadImage( url: string ): Promise<Blob> {
 
-		try {
+		const response = await fetch( url );
 
-			const response = await fetch( url );
-
-			if ( !response.ok ) {
-				throw new Error();
-			}
-
-			const blob = await response.blob();
-
-			const reader = new FileReader();
-
-			await new Promise( resolve => {
-				reader.onload = resolve;
-				reader.readAsDataURL( blob );
-			} );
-
-			if ( !reader.result ) {
-				throw new Error();
-			}
-
-			const [ dataUri, type, data ] = reader.result.toString().match( /^data:(.+?)(?:;.+?)*;base64,(.+)$/ ) || [];
-
-			return {
-				type,
-				data,
-			};
-
-		} catch ( e ) {
-			return {
-				type: 'image/gif',
-				data: 'R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
-			};
+		if ( !response.ok ) {
+			throw new Error( response.statusText );
 		}
+
+		return response.blob();
 
 	}
 
@@ -316,146 +301,99 @@ export class PlexUpdates extends AlpineApp {
 
 	async onclick_sendUpdate() {
 
-		this.jmapCreateSuccess = null;
-
 		const selectedMedia = this.recentlyAdded.filter( media => this.selectedMediaKeys.includes( media.key ) );
 
-		// let mediaIndex = 0;
-		// for ( const media of selectedMedia ) {
+		const html = await this.buildEmailTemplate( selectedMedia );
 
-		// 	const poster = this.getMediaPoster( media );
-		// 	const background = this.getMediaBackground( media );
+		this.jmapCreateSuccess = null;
 
-		// 	const posterData = await this.downloadImage( poster );
-		// 	const backgroundData = await this.downloadImage( background );
+		const emails: Partial<JmapApi.Email>[] = this.jmapContacts.map( contact => {
 
-		// 	mj_emails.Globals!.InlinedAttachments?.push( {
-		// 		ContentType: posterData.type,
-		// 		Base64Content: posterData.data,
-		// 		Filename: `media-${mediaIndex}-poster.jpg`,
-		// 		ContentID: `media-${mediaIndex}-poster`,
-		// 	} );
+			const body = MjmlTemplate.replaceVariables( html, {
+				to_name: contact.name || 'there',
+			} );
 
-		// 	mj_emails.Globals!.InlinedAttachments?.push( {
-		// 		ContentType: backgroundData.type,
-		// 		Base64Content: backgroundData.data,
-		// 		Filename: `media-${mediaIndex}-background.jpg`,
-		// 		ContentID: `media-${mediaIndex}-background`,
-		// 	} );
+			return {
+				from: [ { name: this.jmapFromName, email: this.jmapFromEmail } ],
+				to: [ contact ],
+				subject: `What’s new on Plex`,
+				keywords: { $draft: true },
+				mailboxIds: { [ this.jmapDraftMailboxId ]: true },
+				bodyValues: { body: { value: body } },
+				htmlBody: [ { partId: 'body', type: 'text/html' } ],
+			};
 
-		// 	mj_updates.push( {
-		// 		backgroundCid: `cid:media-${mediaIndex}-background`,
-		// 		posterCid: `cid:media-${mediaIndex}-poster`,
-		// 		href: `https://app.plex.tv/desktop#!/server/${this.server.machineIdentifier}/details?` + new URLSearchParams( { key: media.key } ).toString(),
-		// 		title: this.getMediaTitle( media ),
-		// 		year: media.year.toString(),
-		// 		summary: media.summary,
-		// 		genres: ( media.Genre || [] ).map( genre => genre.tag ).join( ', ' ),
-		// 	} );
-
-		// 	mediaIndex++;
-		// }
-
-		const emails: Partial<JmapApi.Email>[] = this.jmapContacts.map( contact => ( {
-			from: [ { name: this.jmapFromName, email: this.jmapFromEmail } ],
-			to: [ contact ],
-			subject: `What’s new on Plex`,
-			keywords: { $draft: true },
-			mailboxIds: { [ this.jmapDraftMailboxId ]: true },
-			bodyValues: { body: { value: 'Hello!\n\nThis email was sent using JMAP.' } },
-			textBody: [ { partId: 'body', type: 'text/plain' } ],
-		} ) );
+		} );
 
 		this.jmapCreateSuccess = await this.jmap.createEmails( ...emails );
 
-
-
-
-
-
-		// const mj_updates: {
-		// 	backgroundCid: string,
-		// 	posterCid: string,
-		// 	href: string,
-		// 	title: string,
-		// 	year: string,
-		// 	summary: string,
-		// 	genres: string,
-		// }[] = [];
-
-		// let mediaIndex = 0;
-		// for ( const media of selectedMedia ) {
-
-		// 	const poster = this.getMediaPoster( media );
-		// 	const background = this.getMediaBackground( media );
-
-		// 	const posterData = await this.downloadImage( poster );
-		// 	const backgroundData = await this.downloadImage( background );
-
-		// 	mj_emails.Globals!.InlinedAttachments?.push( {
-		// 		ContentType: posterData.type,
-		// 		Base64Content: posterData.data,
-		// 		Filename: `media-${mediaIndex}-poster.jpg`,
-		// 		ContentID: `media-${mediaIndex}-poster`,
-		// 	} );
-
-		// 	mj_emails.Globals!.InlinedAttachments?.push( {
-		// 		ContentType: backgroundData.type,
-		// 		Base64Content: backgroundData.data,
-		// 		Filename: `media-${mediaIndex}-background.jpg`,
-		// 		ContentID: `media-${mediaIndex}-background`,
-		// 	} );
-
-		// 	mj_updates.push( {
-		// 		backgroundCid: `cid:media-${mediaIndex}-background`,
-		// 		posterCid: `cid:media-${mediaIndex}-poster`,
-		// 		href: `https://app.plex.tv/desktop#!/server/${this.server.machineIdentifier}/details?` + new URLSearchParams( { key: media.key } ).toString(),
-		// 		title: this.getMediaTitle( media ),
-		// 		year: media.year.toString(),
-		// 		summary: media.summary,
-		// 		genres: ( media.Genre || [] ).map( genre => genre.tag ).join( ', ' ),
-		// 	} );
-
-		// 	mediaIndex++;
-		// }
-
-		// const mj_contacts = this.mailjetContacts.filter( contact => this.mailjetSelectedContactIds.includes( contact.ID.toString() ) );
-
-		// if ( !mj_contacts.length ) {
-		// 	console.error( 'No contacts selected' );
-		// 	return;
-		// }
-
-		// for ( const contact of mj_contacts ) {
-		// 	mj_emails.Messages.push( {
-		// 		To: [ {
-		// 			Name: contact.Name,
-		// 			Email: contact.Email,
-		// 		} ],
-		// 	} );
-		// }
-
-		// mj_emails.Globals!.Variables = {
-		// 	...mj_emails.Globals!.Variables,
-		// 	updates: mj_updates,
-		// };
-
-		// this.mailjet.sendTransactionalEmail( mj_emails );
-
-		// // console.log( emails );
-
 	}
 
-	addContact() {
+	onclick_addContact() {
 		this.jmapContacts.push( { name: '', email: '' } );
 	}
 
-	removeContact( index: number ) {
+	onclick_removeContact( index: number ) {
 		this.jmapContacts.splice( index, 1 );
 	}
 
-	buildEmailTemplate() {
-		
+	async buildEmailTemplate( selectedMedia: Plex.Metadata[] ) {
+
+		const mediaSections: MjmlTemplate[] = [];
+
+		for ( const media of selectedMedia ) {
+
+			const posterUrl = this.getMediaPoster( media );
+			const backgroundUrl = this.getMediaBackground( media );
+
+			const posterBlob = await this.downloadImage( posterUrl );
+			const backgroundBlob = await this.downloadImage( backgroundUrl );
+
+			const { data: { link: posterLink } } = await this.imgur.uploadImage( posterBlob );
+			const { data: { link: backgroundLink } } = await this.imgur.uploadImage( backgroundBlob );
+
+			mediaSections.push( new MjmlTemplate( 'section-update-movie', {
+				background: backgroundLink,
+				poster: posterLink,
+				href: `https://app.plex.tv/desktop#!/server/${this.server.machineIdentifier}/details?` + new URLSearchParams( { key: media.key } ),
+				title: this.getMediaTitle( media ),
+				year: media.year.toString(),
+				summary: media.summary,
+				genres: ( media.Genre || [] ).map( genre => genre.tag ).join( ', ' ),
+			} ) )
+
+		}
+
+		const template = new MjmlTemplate( 'base', {
+			sections: [
+
+				new MjmlTemplate( 'section-header', {
+					logo_url: 'https://xy10n.mjt.lu/tplimg/xy10n/b/s2tz8/2yrq.png',
+					logo_width: '50px',
+					logo_height: '50px',
+				} ),
+
+				new MjmlTemplate( 'section-text', {
+					html: `<p>Hey {{ to_name }},</p>
+						<p>I just added some more stuff.</p>
+						<p>Enjoy!</p>`,
+				} ),
+
+				...mediaSections,
+
+				new MjmlTemplate( 'section-footer', {
+					unsubscribe: `mailto:${this.jmapFromEmail}&` + ( new URLSearchParams( {
+						subject: 'Please unsubscribe me from Plex Updates',
+					} ) ).toString().replace( '+', '%20' ),
+				} ),
+
+			],
+		} );
+
+		const mjml = await template.render();
+
+		return window.mjml2html( mjml ).html;
+
 	}
 
 }

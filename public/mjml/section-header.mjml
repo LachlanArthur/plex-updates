@@ -1,0 +1,13 @@
+<mj-section background-size="auto" padding="20px 0px 20px 0px" text-align="center">
+	<mj-column>
+		<mj-text align="left" color="#000000" font-size="13px" padding-bottom="0px" padding-top="0px" padding="0px 0px 0px 25px">
+			<p style="margin: 10px 0; margin-top: 10px; margin-bottom: 10px">{{ title }}</p>
+		</mj-text>
+	</mj-column>
+</mj-section>
+
+<mj-section background-color="#000000" border="0px solid #ffffff" padding="20px 0px 20px 0px" text-align="center">
+	<mj-column>
+		<mj-image align="left" alt="" border-radius="0" border="none" container-background-color="transparent" width="{{ logo_width }}" height="{{ logo_height }}" padding="10px 25px 10px 25px" src="{{ logo_url }}" target="_blank"></mj-image>
+	</mj-column>
+</mj-section>

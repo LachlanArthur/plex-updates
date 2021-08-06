@@ -1,0 +1,18 @@
+<mj-section background-color="#343a3f" background-repeat="no-repeat" background-size="cover" background-url="{{ background }}" padding="25px" text-align="center">
+	<mj-column width="33%">
+		<mj-image align="center" height="auto" border-radius="4px" href="{{ href }}" padding="15px" src="{{ poster }}" target="_blank" width="200px"></mj-image>
+	</mj-column>
+	<mj-column width="67%">
+		<mj-text align="left" color="#ffffff" padding="15px 15px 0px">
+			<h3 style="font-size: 24px; margin: 10px 0;">{{ title }}</h3>
+			<p style="font-size: 15px; margin: 10px 0;"><b>{{ year }}</b></p>
+		</mj-text>
+		<mj-button href="{{ href }}" align="left" background-color="#f3b530" border-radius="5px" color="#1f2326" font-size="13px" font-weight="bold" inner-padding="7px 15px 7px 15px" padding="0px 15px 0px 15px">
+			▶ PLAY
+		</mj-button>
+		<mj-text align="left" color="#ffffff" font-size="15px" line-height="1.4" padding="0px 15px 15px">
+			<p>{{ summary }}</p>
+			<p>{{ genres }}</p>
+		</mj-text>
+	</mj-column>
+</mj-section>
