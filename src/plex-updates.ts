@@ -7,6 +7,12 @@ import type { JmapApi } from 'types/jmap-api';
 import { MjmlTemplate } from './mjml';
 import { ImgurClient } from './imgur';
 
+interface Contact {
+	name: string
+	email: string
+	active: boolean
+}
+
 export class PlexUpdates extends AlpineApp {
 
 	plexUrl: string = '';
@@ -18,7 +24,7 @@ export class PlexUpdates extends AlpineApp {
 	jmapUsername: string = '';
 	jmapPassword: string = '';
 	jmapDraftMailboxId: string = '';
-	jmapContacts: JmapApi.EmailAddress[] = [];
+	jmapContacts: Contact[] = [];
 	jmapFromName: string = '';
 	jmapFromEmail: string = '';
 	jmapCreateSuccess: any = null;
@@ -46,7 +52,13 @@ export class PlexUpdates extends AlpineApp {
 		this.jmapHost = localStorage.getItem( 'jmapHost' ) || '';
 		this.jmapUsername = localStorage.getItem( 'jmapUsername' ) || '';
 		this.jmapPassword = localStorage.getItem( 'jmapPassword' ) || '';
-		this.jmapContacts = Array.from<JmapApi.EmailAddress>( JSON.parse( localStorage.getItem( 'jmapContacts' ) || '[]' ) ).filter( Boolean );
+		this.jmapContacts = Array.from<Contact>( JSON.parse( localStorage.getItem( 'jmapContacts' ) || '[]' ) )
+			.filter( Boolean )
+			.map( contact => ( {
+				name: contact.name || '',
+				email: contact.email || '',
+				active: Boolean( contact.active ),
+			} ) );
 		this.jmapFromName = localStorage.getItem( 'jmapFromName' ) || '';
 		this.jmapFromEmail = localStorage.getItem( 'jmapFromEmail' ) || '';
 
@@ -87,8 +99,8 @@ export class PlexUpdates extends AlpineApp {
 			this.jmap.password = value;
 		} );
 
-		this.$watch( 'jmapContacts', ( value: JmapApi.EmailAddress[] ) => {
-			localStorage.setItem( 'jmapContacts', JSON.stringify( value.filter( Boolean ) ) );
+		this.$watch( 'jmapContacts', ( value: Contact[] ) => {
+			this.saveContacts( value );
 		} );
 
 		this.$watch( 'jmapFromName', ( value: string ) => {
@@ -299,7 +311,13 @@ export class PlexUpdates extends AlpineApp {
 
 	}
 
+	get activeContacts() {
+		return this.jmapContacts.filter( contact => contact.active );
+	}
+
 	async onclick_sendUpdate() {
+
+		this.trigger_saveContacts();
 
 		const selectedMedia = this.recentlyAdded.filter( media => this.selectedMediaKeys.includes( media.key ) );
 
@@ -307,7 +325,7 @@ export class PlexUpdates extends AlpineApp {
 
 		this.jmapCreateSuccess = null;
 
-		const emails: Partial<JmapApi.Email>[] = this.jmapContacts.map( contact => {
+		const emails: Partial<JmapApi.Email>[] = this.activeContacts.map( contact => {
 
 			const body = MjmlTemplate.replaceVariables( html, {
 				to_name: contact.name || 'there',
@@ -330,11 +348,21 @@ export class PlexUpdates extends AlpineApp {
 	}
 
 	onclick_addContact() {
-		this.jmapContacts.push( { name: '', email: '' } );
+		this.jmapContacts.push( { name: '', email: '', active: true } );
 	}
 
 	onclick_removeContact( index: number ) {
 		this.jmapContacts.splice( index, 1 );
+	}
+
+	trigger_saveContacts() {
+		this.$nextTick( () => {
+			this.saveContacts( this.jmapContacts );
+		} );
+	}
+
+	saveContacts( contacts: Contact[] ) {
+		localStorage.setItem( 'jmapContacts', JSON.stringify( contacts.filter( Boolean ) ) );
 	}
 
 	async buildEmailTemplate( selectedMedia: Plex.Metadata[] ) {
@@ -382,9 +410,9 @@ export class PlexUpdates extends AlpineApp {
 				...mediaSections,
 
 				new MjmlTemplate( 'section-footer', {
-					unsubscribe: `mailto:${this.jmapFromEmail}&` + ( new URLSearchParams( {
+					unsubscribe: `mailto:${this.jmapFromEmail}?` + ( new URLSearchParams( {
 						subject: 'Please unsubscribe me from Plex Updates',
-					} ) ).toString().replace( '+', '%20' ),
+					} ) ).toString().replaceAll( '+', '%20' ),
 				} ),
 
 			],

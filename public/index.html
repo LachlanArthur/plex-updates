@@ -94,6 +94,7 @@
 									</colgroup>
 									<thead>
 										<tr>
+											<th>Active</th>
 											<th>Name</th>
 											<th>Email</th>
 											<th>&nbsp;</th>
@@ -103,10 +104,13 @@
 										<template x-for="(contact, index) in jmapContacts" :key="index">
 											<tr>
 												<td>
-													<input type="text" x-model="contact.name" />
+													<input type="checkbox" x-model="contact.active" @click="trigger_saveContacts" />
 												</td>
 												<td>
-													<input type="email" x-model="contact.email" />
+													<input type="text" x-model="contact.name" @keyup="trigger_saveContacts" />
+												</td>
+												<td>
+													<input type="email" x-model="contact.email" @keyup="trigger_saveContacts" />
 												</td>
 												<td>
 													<button type="button" @click="onclick_removeContact(index)">×</button>
@@ -114,7 +118,7 @@
 											</tr>
 										</template>
 										<tr>
-											<td colspan="3">
+											<td colspan="4">
 												<button type="button" @click="onclick_addContact">Add contact</button>
 											</td>
 										</tr>
@@ -135,7 +139,7 @@
 								</table>
 
 								<button type="button" :disabled="!jmapContacts.length" @click="onclick_sendUpdate">
-									Create draft update emails for <span x-text="jmapContacts.length">0</span> contacts
+									Create draft update emails for <span x-text="activeContacts.length">0</span> contacts
 								</button>
 
 								<p x-show="jmapCreateSuccess">Success</p>
