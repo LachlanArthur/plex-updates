@@ -329,6 +329,7 @@ export class PlexUpdates extends AlpineApp {
 
 			const body = MjmlTemplate.replaceVariables( html, {
 				to_name: contact.name || 'there',
+				from_name: this.jmapFromName,
 			} );
 
 			return {
@@ -402,9 +403,10 @@ export class PlexUpdates extends AlpineApp {
 				} ),
 
 				new MjmlTemplate( 'section-text', {
-					html: `<p>Hey {{ to_name }},</p>
-						<p>I just added some more stuff.</p>
-						<p>Enjoy!</p>`,
+					html: `<p>Hey {{ to_name }},<br>
+						I just added some more stuff to Plex.<br>
+						Enjoy!</p>
+						<p>— {{ from_name }}</p>`,
 				} ),
 
 				...mediaSections,
